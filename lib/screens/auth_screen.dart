@@ -42,15 +42,16 @@ class _AuthScreenState extends State<AuthScreen> {
           username: _usernameController.text.trim(),
         );
       }
-      
+
       if (mounted) {
+        // 로그인/회원가입 성공 시 이전 화면으로 돌아가기
         Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('오류: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('오류: ${e.toString()}')));
       }
     } finally {
       if (mounted) {
@@ -147,9 +148,9 @@ class _AuthScreenState extends State<AuthScreen> {
                   onPressed: () {
                     setState(() => _isLogin = !_isLogin);
                   },
-                  child: Text(_isLogin
-                      ? '계정이 없으신가요? 회원가입'
-                      : '이미 계정이 있으신가요? 로그인'),
+                  child: Text(
+                    _isLogin ? '계정이 없으신가요? 회원가입' : '이미 계정이 있으신가요? 로그인',
+                  ),
                 ),
               ],
             ),
@@ -159,4 +160,3 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 }
-

@@ -37,6 +37,10 @@ dependencies:
   
   # Supabase
   supabase_flutter: ^2.0.0
+  
+  # 카카오 로그인
+  kakao_flutter_sdk: ^1.4.0
+  url_launcher: ^6.2.5
 
 dev_dependencies:
   flutter_test:

@@ -28,6 +28,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // 카카오 SDK 설정
+        manifestPlaceholders["kakaoScheme"] = "kakao3fdcaa17a7"
     }
 
     buildTypes {

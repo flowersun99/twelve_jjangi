@@ -6,20 +6,30 @@ import 'models/game_state.dart';
 import 'game_logic.dart';
 import 'services/supabase_service.dart';
 import 'services/auth_service.dart';
+import 'services/kakao_auth_service.dart';
 import 'screens/auth_screen.dart';
 import 'screens/matchmaking_screen.dart';
 import 'services/matchmaking_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Supabase 초기화 (실제 URL과 키로 교체 필요)
   // TODO: Supabase 프로젝트 생성 후 URL과 anonKey를 입력하세요
   await SupabaseService.initialize(
-    url: 'YOUR_SUPABASE_URL', // 예: 'https://xxxxx.supabase.co'
-    anonKey: 'YOUR_SUPABASE_ANON_KEY', // 예: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+    url: 'YOUR_SUPABASE_URL', // 예: 'https://fhmfrldgnrbxzdygxmkb.supabase.co'
+    anonKey:
+        'YOUR_SUPABASE_ANON_KEY', // 예: 'sb_secret_bSbFauvDDLQQcMjjlc-P5w_7rR4ejIA'
   );
-  
+
+  // 카카오 SDK 초기화
+  try {
+    await KakaoAuthService.initialize();
+  } catch (e) {
+    print('카카오 SDK 초기화 오류 (무시됨): $e');
+    // 카카오 SDK 초기화 실패해도 앱은 계속 실행
+  }
+
   runApp(const MyApp());
 }
 
@@ -39,13 +49,61 @@ class MyApp extends StatelessWidget {
         '/game': (context) => const GameScreen(),
         '/rules': (context) => const RulesPage(),
         '/auth': (context) => const AuthScreen(),
+        '/main': (context) => const MainPage(),
       },
     );
   }
 }
 
-class MainPage extends StatelessWidget {
+class MainPage extends StatefulWidget {
   const MainPage({super.key});
+
+  @override
+  State<MainPage> createState() => _MainPageState();
+}
+
+class _MainPageState extends State<MainPage> {
+  void _handleKakaoLogin() async {
+    try {
+      setState(() {}); // 로딩 상태 표시를 위해
+
+      final success = await KakaoAuthService.signIn();
+
+      if (success && mounted) {
+        setState(() {}); // 로그인 성공 시 상태 업데이트
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('카카오 로그인 성공!')));
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('카카오 로그인을 완료하려면 Supabase에서 카카오 OAuth를 설정해주세요.'),
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('카카오 로그인 오류: ${e.toString()}'),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  void _handleNaverLogin() async {
+    // TODO: 네이버 로그인 구현
+    // Supabase OAuth를 사용하여 네이버 로그인 구현 필요
+    // await SupabaseService.client.auth.signInWithOAuth(OAuthProvider.naver);
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('네이버 로그인은 곧 지원될 예정입니다.')));
+    }
+  }
 
   void _showGameModeDialog(BuildContext context) {
     showDialog(
@@ -67,21 +125,13 @@ class MainPage extends StatelessWidget {
                 width: double.infinity,
                 height: 60,
                 child: ElevatedButton(
-                  onPressed: () async {
+                  onPressed: () {
                     Navigator.pop(context);
-                    if (!SupabaseService.isAuthenticated) {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const AuthScreen()),
-                      );
-                      if (result != true) return;
-                    }
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const MatchmakingScreen(
-                          mode: GameMode.normal,
-                        ),
+                        builder: (context) =>
+                            const MatchmakingScreen(mode: GameMode.normal),
                       ),
                     );
                   },
@@ -94,10 +144,7 @@ class MainPage extends StatelessWidget {
                   ),
                   child: const Text(
                     '일반게임',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -106,21 +153,13 @@ class MainPage extends StatelessWidget {
                 width: double.infinity,
                 height: 60,
                 child: ElevatedButton(
-                  onPressed: () async {
+                  onPressed: () {
                     Navigator.pop(context);
-                    if (!SupabaseService.isAuthenticated) {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const AuthScreen()),
-                      );
-                      if (result != true) return;
-                    }
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const MatchmakingScreen(
-                          mode: GameMode.ranked,
-                        ),
+                        builder: (context) =>
+                            const MatchmakingScreen(mode: GameMode.ranked),
                       ),
                     );
                   },
@@ -133,10 +172,7 @@ class MainPage extends StatelessWidget {
                   ),
                   child: const Text(
                     '랭크게임',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -158,10 +194,7 @@ class MainPage extends StatelessWidget {
                   ),
                   child: const Text(
                     '2인게임',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -180,101 +213,210 @@ class MainPage extends StatelessWidget {
     );
   }
 
-  void _showComingSoonDialog(BuildContext context, String mode) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(mode),
-          content: const Text('곧 출시될 예정입니다!'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('확인'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final isAuthenticated = SupabaseService.isAuthenticated;
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Colors.brown.shade100,
-              Colors.brown.shade50,
-            ],
+            colors: [Colors.brown.shade100, Colors.brown.shade50],
           ),
         ),
         child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                '십이장기 온라인',
-                style: TextStyle(
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.brown,
-                ),
-              ),
-              const SizedBox(height: 80),
-              SizedBox(
-                width: 200,
-                height: 60,
-                child: ElevatedButton(
-                  onPressed: () {
-                    _showGameModeDialog(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.brown,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    '게임 시작',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  '십이장기 온라인',
+                  style: TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.brown,
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: 200,
-                height: 60,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/rules');
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.brown.shade300,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                const SizedBox(height: 60),
+                if (!isAuthenticated) ...[
+                  // 소셜 로그인 버튼들
+                  SizedBox(
+                    width: 280,
+                    height: 55,
+                    child: ElevatedButton.icon(
+                      onPressed: _handleKakaoLogin,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFEE500), // 카카오 노란색
+                        foregroundColor: Colors.black87,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Text(
+                        '카',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      label: const Text(
+                        '카카오로 시작하기',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
-                  child: const Text(
-                    '게임 설명',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: 280,
+                    height: 55,
+                    child: ElevatedButton.icon(
+                      onPressed: _handleNaverLogin,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF03C75A), // 네이버 초록색
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Text(
+                        'N',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      label: const Text(
+                        '네이버로 시작하기',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ],
+                  const SizedBox(height: 20),
+                  // 구분선
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: Colors.brown.shade300)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          '또는',
+                          style: TextStyle(
+                            color: Colors.brown.shade600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                      Expanded(child: Divider(color: Colors.brown.shade300)),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  // 일반 로그인/회원가입 버튼
+                  SizedBox(
+                    width: 280,
+                    height: 55,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final result = await Navigator.pushNamed(
+                          context,
+                          '/auth',
+                        );
+                        if (result == true && mounted) {
+                          setState(() {}); // 로그인 성공 시 상태 업데이트
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.brown.shade400,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        '로그인 / 회원가입',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ] else ...[
+                  // 인증된 경우 게임 버튼들
+                  SizedBox(
+                    width: 200,
+                    height: 60,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        _showGameModeDialog(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.brown,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        '게임 시작',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: 200,
+                    height: 60,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pushNamed(context, '/rules');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.brown.shade300,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        '게임 설명',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  TextButton(
+                    onPressed: () async {
+                      await AuthService.signOut();
+                      if (mounted) {
+                        setState(() {}); // 상태 업데이트
+                      }
+                    },
+                    child: Text(
+                      '로그아웃',
+                      style: TextStyle(
+                        color: Colors.brown.shade700,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       ),
@@ -318,33 +460,57 @@ class RulesPage extends StatelessWidget {
               '말의 종류와 이동',
               '',
               children: [
-                _buildRuleItem('장(將)', '자신의 진영 오른쪽에 놓이는 말로 앞, 뒤와 좌, 우로 이동이 가능하다.'),
+                _buildRuleItem(
+                  '장(將)',
+                  '자신의 진영 오른쪽에 놓이는 말로 앞, 뒤와 좌, 우로 이동이 가능하다.',
+                ),
                 _buildRuleItem('상(相)', '자신의 진영 왼쪽에 놓이며 대각선 4방향으로 이동할 수 있다.'),
-                _buildRuleItem('왕(王)', '자신의 진영 중앙에 위치하며 앞, 뒤, 좌, 우, 대각선 방향까지 모든 방향으로 이동이 가능하다.'),
+                _buildRuleItem(
+                  '왕(王)',
+                  '자신의 진영 중앙에 위치하며 앞, 뒤, 좌, 우, 대각선 방향까지 모든 방향으로 이동이 가능하다.',
+                ),
                 _buildRuleItem('자(子)', '왕의 앞에 놓이며 오로지 앞으로만 이동할 수 있다.'),
-                _buildRuleItem('후(侯)', '자(子)가 상대 진영에 들어가면 뒤집어서 후(侯)로 사용된다. 후(侯)는 대각선 뒤쪽 방향을 제외한 전 방향으로 이동할 수 있다.'),
+                _buildRuleItem(
+                  '후(侯)',
+                  '자(子)가 상대 진영에 들어가면 뒤집어서 후(侯)로 사용된다. 후(侯)는 대각선 뒤쪽 방향을 제외한 전 방향으로 이동할 수 있다.',
+                ),
               ],
             ),
-            _buildSection(
-              '게임 진행',
-              '게임이 시작되면 선 플레이어부터 말 1개를 1칸 이동시킬 수 있다.',
-            ),
+            _buildSection('게임 진행', '게임이 시작되면 선 플레이어부터 말 1개를 1칸 이동시킬 수 있다.'),
             _buildSection(
               '포로 시스템',
               '',
               children: [
-                _buildRuleItem('포로 잡기', '말을 이동시켜 상대방의 말을 잡은 경우, 해당 말을 포로로 잡게 되며 포로로 잡은 말은 다음 턴부터 자신의 말로 사용할 수 있다.'),
-                _buildRuleItem('포로 놓기', '게임 판에 포로로 잡은 말을 내려놓는 행동도 턴을 소모하는 것이며 이미 말이 놓여진 곳이나 상대의 진영에는 말을 내려놓을 수 없다.'),
-                _buildRuleItem('후(侯) 포로', '상대방의 후(侯)를 잡아 자신의 말로 사용할 경우에는 자(子)로 뒤집어서 사용해야 한다.'),
-                _buildRuleItem('포로 사용', '잡은 말을 사용할 땐 자신이 원하는 턴에 자유롭게 사용가능 하며 원하지 않으면 사용하지 않아도 무관하다.'),
+                _buildRuleItem(
+                  '포로 잡기',
+                  '말을 이동시켜 상대방의 말을 잡은 경우, 해당 말을 포로로 잡게 되며 포로로 잡은 말은 다음 턴부터 자신의 말로 사용할 수 있다.',
+                ),
+                _buildRuleItem(
+                  '포로 놓기',
+                  '게임 판에 포로로 잡은 말을 내려놓는 행동도 턴을 소모하는 것이며 이미 말이 놓여진 곳이나 상대의 진영에는 말을 내려놓을 수 없다.',
+                ),
+                _buildRuleItem(
+                  '후(侯) 포로',
+                  '상대방의 후(侯)를 잡아 자신의 말로 사용할 경우에는 자(子)로 뒤집어서 사용해야 한다.',
+                ),
+                _buildRuleItem(
+                  '포로 사용',
+                  '잡은 말을 사용할 땐 자신이 원하는 턴에 자유롭게 사용가능 하며 원하지 않으면 사용하지 않아도 무관하다.',
+                ),
               ],
             ),
             _buildSection(
               '승리 조건',
               '',
               children: [
-                _buildRuleItem('조건 1', '한 플레이어가 상대방의 왕(王)을 잡으면 해당 플레이어의 승리로 종료된다.'),
-                _buildRuleItem('조건 2', '만약 자신의 왕(王)이 상대방의 진영에 들어가 자신의 턴이 다시 돌아올 때까지 한 턴을 버틸 경우 해당 플레이어의 승리로 게임이 종료된다.'),
+                _buildRuleItem(
+                  '조건 1',
+                  '한 플레이어가 상대방의 왕(王)을 잡으면 해당 플레이어의 승리로 종료된다.',
+                ),
+                _buildRuleItem(
+                  '조건 2',
+                  '만약 자신의 왕(王)이 상대방의 진영에 들어가 자신의 턴이 다시 돌아올 때까지 한 턴을 버틸 경우 해당 플레이어의 승리로 게임이 종료된다.',
+                ),
               ],
             ),
             const SizedBox(height: 20),
@@ -356,12 +522,12 @@ class RulesPage extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.brown,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 16,
+                  ),
                 ),
-                child: const Text(
-                  '돌아가기',
-                  style: TextStyle(fontSize: 18),
-                ),
+                child: const Text('돌아가기', style: TextStyle(fontSize: 18)),
               ),
             ),
             const SizedBox(height: 20),
@@ -387,10 +553,7 @@ class RulesPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           if (content.isNotEmpty)
-            Text(
-              content,
-              style: const TextStyle(fontSize: 16, height: 1.5),
-            ),
+            Text(content, style: const TextStyle(fontSize: 16, height: 1.5)),
           if (children != null) ...children,
         ],
       ),
@@ -403,7 +566,10 @@ class RulesPage extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('• ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const Text(
+            '• ',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -457,7 +623,7 @@ class _GameScreenState extends State<GameScreen> {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
-      
+
       setState(() {
         if (_gameState.winner != null) {
           _timer?.cancel();
@@ -496,7 +662,8 @@ class _GameScreenState extends State<GameScreen> {
           _gameState.currentPlayer,
         );
 
-        if (placeablePositions.contains(pos) && _gameState.capturedPieceIndex != null) {
+        if (placeablePositions.contains(pos) &&
+            _gameState.capturedPieceIndex != null) {
           _gameState = GameLogic.placeCapturedPiece(
             _gameState,
             pos,
@@ -616,17 +783,13 @@ class _GameScreenState extends State<GameScreen> {
         children: [
           // Player 2 포로 영역
           _buildCapturedArea(Player.player2, _gameState.player2Captured),
-          
+
           // 게임판
-          Expanded(
-            child: Center(
-              child: _buildBoard(),
-            ),
-          ),
-          
+          Expanded(child: Center(child: _buildBoard())),
+
           // Player 1 포로 영역
           _buildCapturedArea(Player.player1, _gameState.player1Captured),
-          
+
           // 현재 턴 표시
           _buildTurnIndicator(),
         ],
@@ -665,7 +828,8 @@ class _GameScreenState extends State<GameScreen> {
                 if (data == null) return false;
                 // 현재 플레이어의 말이고, 이동 가능한 위치인지 확인
                 final sourcePiece = _gameState.board[data];
-                if (sourcePiece == null || sourcePiece.owner != _gameState.currentPlayer) {
+                if (sourcePiece == null ||
+                    sourcePiece.owner != _gameState.currentPlayer) {
                   return false;
                 }
                 final moves = GameLogic.getPossibleMoves(_gameState, data);
@@ -683,20 +847,20 @@ class _GameScreenState extends State<GameScreen> {
                       color: isDragTarget
                           ? Colors.yellow.shade200
                           : isSelected
-                              ? Colors.blue.shade200
-                              : isPossibleMove
-                                  ? Colors.green.shade200
-                                  : isPlayer1Territory
-                                      ? Colors.red.shade50
-                                      : isPlayer2Territory
-                                          ? Colors.blue.shade50
-                                          : Colors.brown.shade100,
+                          ? Colors.blue.shade200
+                          : isPossibleMove
+                          ? Colors.green.shade200
+                          : isPlayer1Territory
+                          ? Colors.red.shade50
+                          : isPlayer2Territory
+                          ? Colors.blue.shade50
+                          : Colors.brown.shade100,
                       border: Border.all(
                         color: isPlayer1Territory
                             ? Colors.red.shade300
                             : isPlayer2Territory
-                                ? Colors.blue.shade300
-                                : Colors.brown.shade300,
+                            ? Colors.blue.shade300
+                            : Colors.brown.shade300,
                         width: isDragTarget ? 3 : 1,
                       ),
                     ),
@@ -704,8 +868,12 @@ class _GameScreenState extends State<GameScreen> {
                       child: piece != null
                           ? _buildPiece(piece, pos)
                           : isPossibleMove
-                              ? const Icon(Icons.circle, size: 20, color: Colors.green)
-                              : null,
+                          ? const Icon(
+                              Icons.circle,
+                              size: 20,
+                              color: Colors.green,
+                            )
+                          : null,
                     ),
                   ),
                 );
@@ -720,7 +888,7 @@ class _GameScreenState extends State<GameScreen> {
   Widget _buildPiece(Piece piece, Position pos) {
     final isPlayer1 = piece.owner == Player.player1;
     final isCurrentPlayerPiece = piece.owner == _gameState.currentPlayer;
-    
+
     final pieceWidget = Container(
       width: 50,
       height: 50,
@@ -747,15 +915,9 @@ class _GameScreenState extends State<GameScreen> {
         data: pos,
         feedback: Material(
           color: Colors.transparent,
-          child: Opacity(
-            opacity: 0.8,
-            child: pieceWidget,
-          ),
+          child: Opacity(opacity: 0.8, child: pieceWidget),
         ),
-        childWhenDragging: Opacity(
-          opacity: 0.3,
-          child: pieceWidget,
-        ),
+        childWhenDragging: Opacity(opacity: 0.3, child: pieceWidget),
         onDragStarted: () {
           setState(() {
             final moves = GameLogic.getPossibleMoves(_gameState, pos);
@@ -820,10 +982,13 @@ class _GameScreenState extends State<GameScreen> {
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: isPlayer1 ? Colors.red.shade200 : Colors.blue.shade200,
+                      color: isPlayer1
+                          ? Colors.red.shade200
+                          : Colors.blue.shade200,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: _gameState.isPlacingCaptured &&
+                        color:
+                            _gameState.isPlacingCaptured &&
                                 _gameState.capturedPieceIndex == index
                             ? Colors.green
                             : Colors.black,
@@ -857,10 +1022,7 @@ class _GameScreenState extends State<GameScreen> {
         child: Center(
           child: Text(
             '${_gameState.winner == Player.player1 ? "Player 1" : "Player 2"} 승리!',
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
         ),
       );
@@ -870,8 +1032,8 @@ class _GameScreenState extends State<GameScreen> {
     final timeColor = _gameState.timeRemaining <= 5
         ? Colors.red
         : _gameState.timeRemaining <= 10
-            ? Colors.orange
-            : Colors.black;
+        ? Colors.orange
+        : Colors.black;
 
     return Container(
       padding: const EdgeInsets.all(16),
